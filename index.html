@@ -35,6 +35,9 @@
     .category-row input {
       margin-right: 8px;
     }
+    input[type="number"] {
+      width: 80px;
+    }
   </style>
 </head>
 <body>
@@ -99,32 +102,31 @@
 
       treemapContainer.innerHTML = '';
 
-      let x = 0, y = 0, rowHeight = 0;
+      let x = 0;
+      let y = 0;
+
+      const horizontal = width > height;
 
       categories.forEach((cat, index) => {
-        const areaRatio = cat.value / total;
-        const boxArea = width * height * areaRatio;
-        const boxWidth = Math.sqrt(boxArea * (width / height));
-        const boxHeight = boxArea / boxWidth;
-
-        if (x + boxWidth > width) {
-          x = 0;
-          y += rowHeight;
-          rowHeight = 0;
-        }
+        const ratio = cat.value / total;
+        const boxWidth = horizontal ? width * ratio : width;
+        const boxHeight = horizontal ? height : height * ratio;
 
         const box = document.createElement('div');
         box.className = 'box';
-        box.style.width = boxWidth + 'px';
-        box.style.height = boxHeight + 'px';
-        box.style.left = x + 'px';
-        box.style.top = y + 'px';
+        box.style.left = \`\${x}px\`;
+        box.style.top = \`\${y}px\`;
+        box.style.width = \`\${boxWidth}px\`;
+        box.style.height = \`\${boxHeight}px\`;
         box.style.backgroundColor = \`hsl(\${index * 45 % 360}, 70%, 50%)\`;
         box.innerHTML = \`<strong>\${cat.name}</strong><br />$\${cat.value}\`;
         treemapContainer.appendChild(box);
 
-        x += boxWidth;
-        rowHeight = Math.max(rowHeight, boxHeight);
+        if (horizontal) {
+          x += boxWidth;
+        } else {
+          y += boxHeight;
+        }
       });
     }
 
