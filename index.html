@@ -1,132 +1,135 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Budget Visualizer</title>
+  <meta charset="UTF-8" />
+  <title>Budget Boxer</title>
   <style>
     body {
       font-family: sans-serif;
       margin: 20px;
+      background: #f9f9f9;
     }
-
-    #income-container, #add-category-container {
+    #controls {
       margin-bottom: 20px;
     }
-
-    #budget-container {
-      display: flex;
-      gap: 10px;
-      height: 300px;
+    #treemap {
+      position: relative;
+      width: 100%;
+      height: 600px;
       border: 2px dashed #ccc;
-      padding: 10px;
-      overflow-x: auto;
+      background: #fff;
+      box-sizing: border-box;
     }
-
-    .category {
-      flex-grow: 1;
-      min-width: 100px;
-      resize: horizontal;
-      overflow: auto;
-      padding: 10px;
-      border: 1px solid #999;
-      background-color: #f0f0f0;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
+    .box {
+      position: absolute;
+      box-sizing: border-box;
+      border: 1px solid #333;
+      padding: 5px;
+      color: white;
+      overflow: hidden;
+      font-size: 14px;
     }
-
-    .category h3 {
-      margin: 0 0 10px;
-      font-size: 1em;
+    .category-row {
+      margin-bottom: 6px;
     }
-
-    #remaining {
-      margin-top: 20px;
-      font-weight: bold;
+    .category-row input {
+      margin-right: 8px;
     }
   </style>
 </head>
 <body>
-  <div id="income-container">
-    <label for="income">Monthly Income: $</label>
-    <input type="number" id="income" value="3000" />
+  <h1>Budget Boxer 🥊</h1>
+  <div id="controls">
+    <label><strong>Monthly Income:</strong> $<input type="number" id="income" value="3000" /></label><br /><br />
+    <div id="category-inputs">
+      <div class="category-row">
+        <input type="text" placeholder="Category" class="cat-name" value="Rent" />
+        $<input type="number" class="cat-value" value="1000" />
+      </div>
+      <div class="category-row">
+        <input type="text" placeholder="Category" class="cat-name" value="Groceries" />
+        $<input type="number" class="cat-value" value="800" />
+      </div>
+      <div class="category-row">
+        <input type="text" placeholder="Category" class="cat-name" value="Fun" />
+        $<input type="number" class="cat-value" value="400" />
+      </div>
+    </div>
+    <br />
+    <button id="add-category">+ Add Category</button>
   </div>
 
-  <div id="add-category-container">
-    <input type="text" id="new-category-name" placeholder="Category name" />
-    <button id="add-category">Add Category</button>
-  </div>
-
-  <div id="budget-container">
-    <div class="category" data-name="Rent">
-      <h3>Rent</h3>
-      <div class="amount">$0</div>
-    </div>
-    <div class="category" data-name="Groceries">
-      <h3>Groceries</h3>
-      <div class="amount">$0</div>
-    </div>
-    <div class="category" data-name="Fun">
-      <h3>Fun</h3>
-      <div class="amount">$0</div>
-    </div>
-  </div>
-
-  <div id="remaining">Unallocated: $3000</div>
+  <div id="treemap"></div>
 
   <script>
+    const treemapContainer = document.getElementById('treemap');
     const incomeInput = document.getElementById('income');
-    const container = document.getElementById('budget-container');
-    const remainingDiv = document.getElementById('remaining');
     const addCategoryBtn = document.getElementById('add-category');
-    const newCategoryName = document.getElementById('new-category-name');
-
-    function updateBudget() {
-      const income = parseFloat(incomeInput.value) || 0;
-      let totalAllocated = 0;
-      const categories = document.querySelectorAll('.category');
-
-      categories.forEach(cat => {
-        const width = cat.offsetWidth;
-        const percent = width / container.offsetWidth;
-        const amount = Math.round(percent * income);
-        cat.querySelector('.amount').textContent = '$' + amount;
-        totalAllocated += amount;
-      });
-
-      const remaining = income - totalAllocated;
-      remainingDiv.textContent = `Unallocated: $${remaining}`;
-    }
-
-    function addCategory(name) {
-      const div = document.createElement('div');
-      div.classList.add('category');
-      div.setAttribute('data-name', name);
-      div.innerHTML = `
-        <h3>${name}</h3>
-        <div class="amount">$0</div>
-      `;
-      container.appendChild(div);
-      new ResizeObserver(updateBudget).observe(div);
-      updateBudget();
-    }
-
-    incomeInput.addEventListener('input', updateBudget);
-    window.addEventListener('resize', updateBudget);
-
-    document.querySelectorAll('.category').forEach(cat => {
-      new ResizeObserver(updateBudget).observe(cat);
-    });
+    const categoryInputs = document.getElementById('category-inputs');
 
     addCategoryBtn.addEventListener('click', () => {
-      const name = newCategoryName.value.trim();
-      if (name) {
-        addCategory(name);
-        newCategoryName.value = '';
-      }
+      const div = document.createElement('div');
+      div.className = 'category-row';
+      div.innerHTML = \`
+        <input type="text" placeholder="Category" class="cat-name" />
+        $<input type="number" class="cat-value" value="0" />
+      \`;
+      categoryInputs.appendChild(div);
+      attachInputListeners();
     });
 
-    updateBudget();
+    function attachInputListeners() {
+      document.querySelectorAll('#income, .cat-name, .cat-value').forEach(input => {
+        input.removeEventListener('input', drawTreemap);
+        input.addEventListener('input', drawTreemap);
+      });
+    }
+
+    function drawTreemap() {
+      const income = parseFloat(incomeInput.value) || 1;
+      const categories = Array.from(categoryInputs.querySelectorAll('.category-row')).map(div => {
+        const name = div.querySelector('.cat-name').value.trim();
+        const value = parseFloat(div.querySelector('.cat-value').value) || 0;
+        return { name, value };
+      }).filter(cat => cat.name && cat.value > 0);
+
+      const total = categories.reduce((sum, cat) => sum + cat.value, 0);
+      const width = treemapContainer.clientWidth;
+      const height = treemapContainer.clientHeight;
+
+      treemapContainer.innerHTML = '';
+
+      let x = 0, y = 0, rowHeight = 0;
+
+      categories.forEach((cat, index) => {
+        const areaRatio = cat.value / total;
+        const boxArea = width * height * areaRatio;
+        const boxWidth = Math.sqrt(boxArea * (width / height));
+        const boxHeight = boxArea / boxWidth;
+
+        if (x + boxWidth > width) {
+          x = 0;
+          y += rowHeight;
+          rowHeight = 0;
+        }
+
+        const box = document.createElement('div');
+        box.className = 'box';
+        box.style.width = boxWidth + 'px';
+        box.style.height = boxHeight + 'px';
+        box.style.left = x + 'px';
+        box.style.top = y + 'px';
+        box.style.backgroundColor = \`hsl(\${index * 45 % 360}, 70%, 50%)\`;
+        box.innerHTML = \`<strong>\${cat.name}</strong><br />$\${cat.value}\`;
+        treemapContainer.appendChild(box);
+
+        x += boxWidth;
+        rowHeight = Math.max(rowHeight, boxHeight);
+      });
+    }
+
+    attachInputListeners();
+    drawTreemap();
   </script>
 </body>
 </html>
